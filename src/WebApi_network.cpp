@@ -32,6 +32,7 @@ void WebApiNetworkClass::onNetworkStatus(AsyncWebServerRequest* request)
     root[F("sta_status")] = ((WiFi.getMode() & WIFI_STA) != 0);
     root[F("sta_ssid")] = WiFi.SSID();
     root[F("sta_rssi")] = WiFi.RSSI();
+    root[F("network_hostname")] = NetworkSettings.getHostname();
     root[F("network_ip")] = NetworkSettings.localIP().toString();
     root[F("network_netmask")] = NetworkSettings.subnetMask().toString();
     root[F("network_gateway")] = NetworkSettings.gatewayIP().toString();
@@ -53,7 +54,7 @@ void WebApiNetworkClass::onNetworkAdminGet(AsyncWebServerRequest* request)
 {
     AsyncJsonResponse* response = new AsyncJsonResponse();
     JsonObject root = response->getRoot();
-    CONFIG_T& config = Configuration.get();
+    const CONFIG_T& config = Configuration.get();
 
     root[F("hostname")] = config.WiFi_Hostname;
     root[F("dhcp")] = config.WiFi_Dhcp;
