@@ -48,6 +48,7 @@ void HoymilesRadio::loop()
                 f = _rxBuffer.getFront();
                 memset(f->fragment, 0xcc, MAX_RF_PAYLOAD_SIZE);
                 f->len = _radio->getDynamicPayloadSize();
+                f->channel = _radio->getChannel();
                 if (f->len > MAX_RF_PAYLOAD_SIZE)
                     f->len = MAX_RF_PAYLOAD_SIZE;
 
@@ -69,7 +70,9 @@ void HoymilesRadio::loop()
 
                 if (nullptr != inv) {
                     // Save packet in inverter rx buffer
-                    dumpBuf("RX ", f->fragment, f->len);
+                    char buf[30];
+                    snprintf(buf, sizeof(buf), "RX Channel: %d --> ", f->channel);
+                    dumpBuf(buf, f->fragment, f->len);
                     inv->addRxFragment(f->fragment, f->len);
                 } else {
                     Serial.println(F("Inverter Not found!"));
@@ -91,15 +94,14 @@ void HoymilesRadio::loop()
         if (nullptr != inv) {
             CommandAbstract* cmd = _commandQueue.front().get();
             uint8_t verifyResult = inv->verifyAllFragments(cmd);
-            if (verifyResult == FRAGMENT_ALL_MISSING) {
-                if (_commandQueue.front().get()->getSendCount() <= MAX_RESEND_COUNT) {
-                    Serial.println(F("Nothing received, resend whole request"));
-                    sendLastPacketAgain();
-                } else {
-                    Serial.println(F("Nothing received, resend count exeeded"));
-                    _commandQueue.pop();
-                    _busyFlag = false;
-                }
+            if (verifyResult == FRAGMENT_ALL_MISSING_RESEND) {
+                Serial.println(F("Nothing received, resend whole request"));
+                sendLastPacketAgain();
+
+            } else if (verifyResult == FRAGMENT_ALL_MISSING_TIMEOUT) {
+                Serial.println(F("Nothing received, resend count exeeded"));
+                _commandQueue.pop();
+                _busyFlag = false;
 
             } else if (verifyResult == FRAGMENT_RETRANSMIT_TIMEOUT) {
                 Serial.println(F("Retransmit timeout"));
@@ -162,6 +164,16 @@ bool HoymilesRadio::isIdle()
     return !_busyFlag;
 }
 
+bool HoymilesRadio::isConnected()
+{
+    return _radio->isChipConnected();
+}
+
+bool HoymilesRadio::isPVariant()
+{
+    return _radio->isPVariant();
+}
+
 void HoymilesRadio::openReadingPipe()
 {
     serial_u s;
@@ -197,12 +209,9 @@ uint8_t HoymilesRadio::getTxNxtChannel()
 
 void HoymilesRadio::switchRxCh()
 {
-
-    // portDISABLE_INTERRUPTS();
     _radio->stopListening();
     _radio->setChannel(getRxNxtChannel());
     _radio->startListening();
-    // portENABLE_INTERRUPTS();
 }
 
 serial_u HoymilesRadio::convertSerialToRadioId(serial_u serial)
@@ -237,7 +246,9 @@ void HoymilesRadio::sendEsbPacket(CommandAbstract* cmd)
     openWritingPipe(s);
     _radio->setRetries(3, 15);
 
-    Serial.print(F("TX Channel: "));
+    Serial.print(F("TX "));
+    Serial.print(cmd->getCommandName());
+    Serial.print(F(" Channel: "));
     Serial.print(_radio->getChannel());
     Serial.print(F(" --> "));
     cmd->dumpDataPayload(Serial);
@@ -275,8 +286,7 @@ void HoymilesRadio::dumpBuf(const char* info, uint8_t buf[], uint8_t len)
         Serial.print(String(info));
 
     for (uint8_t i = 0; i < len; i++) {
-        Serial.print(buf[i], 16);
-        Serial.print(" ");
+        Serial.printf("%02X ", buf[i]);
     }
     Serial.println(F(""));
 }

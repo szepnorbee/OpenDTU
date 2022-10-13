@@ -12,7 +12,7 @@
 
 void WebApiInverterClass::init(AsyncWebServer* server)
 {
-    using namespace std::placeholders;
+    using std::placeholders::_1;
 
     _server = server;
 
@@ -28,7 +28,7 @@ void WebApiInverterClass::loop()
 
 void WebApiInverterClass::onInverterList(AsyncWebServerRequest* request)
 {
-    AsyncJsonResponse* response = new AsyncJsonResponse();
+    AsyncJsonResponse* response = new AsyncJsonResponse(false, 4096U);
     JsonObject root = response->getRoot();
     JsonArray data = root.createNestedArray(F("inverter"));
 
@@ -42,7 +42,7 @@ void WebApiInverterClass::onInverterList(AsyncWebServerRequest* request)
 
             // Inverter Serial is read as HEX
             char buffer[sizeof(uint64_t) * 8 + 1];
-            sprintf(buffer, "%0lx%08lx",
+            snprintf(buffer, sizeof(buffer), "%0x%08x",
                 ((uint32_t)((config.Inverter[i].Serial >> 32) & 0xFFFFFFFF)),
                 ((uint32_t)(config.Inverter[i].Serial & 0xFFFFFFFF)));
             obj[F("serial")] = buffer;
@@ -126,9 +126,8 @@ void WebApiInverterClass::onInverterAdd(AsyncWebServerRequest* request)
         return;
     }
 
-    char* t;
     // Interpret the string as a hex value and convert it to uint64_t
-    inverter->Serial = strtoll(root[F("serial")].as<String>().c_str(), &t, 16);
+    inverter->Serial = strtoll(root[F("serial")].as<String>().c_str(), NULL, 16);
 
     strncpy(inverter->Name, root[F("name")].as<String>().c_str(), INV_MAX_NAME_STRLEN);
     Configuration.write();
@@ -211,11 +210,7 @@ void WebApiInverterClass::onInverterEdit(AsyncWebServerRequest* request)
     }
 
     JsonArray maxPowerArray = root[F("max_power")].as<JsonArray>();
-    uint8_t arrayCount = 0;
-    for (JsonVariant maxPower : maxPowerArray) {
-        arrayCount++;
-    }
-    if (arrayCount != INV_MAX_CHAN_COUNT) {
+    if (maxPowerArray.size() != INV_MAX_CHAN_COUNT) {
         retMsg[F("message")] = F("Invalid amount of max channel setting given!");
         response->setLength();
         request->send(response);
@@ -224,15 +219,14 @@ void WebApiInverterClass::onInverterEdit(AsyncWebServerRequest* request)
 
     INVERTER_CONFIG_T& inverter = Configuration.get().Inverter[root[F("id")].as<uint8_t>()];
 
-    char* t;
-    uint64_t new_serial = strtoll(root[F("serial")].as<String>().c_str(), &t, 16);
+    uint64_t new_serial = strtoll(root[F("serial")].as<String>().c_str(), NULL, 16);
     uint64_t old_serial = inverter.Serial;
 
     // Interpret the string as a hex value and convert it to uint64_t
     inverter.Serial = new_serial;
     strncpy(inverter.Name, root[F("name")].as<String>().c_str(), INV_MAX_NAME_STRLEN);
 
-    arrayCount = 0;
+    uint8_t arrayCount = 0;
     for (JsonVariant maxPower : maxPowerArray) {
         inverter.MaxChannelPower[arrayCount] = maxPower.as<uint16_t>();
         arrayCount++;
@@ -321,7 +315,7 @@ void WebApiInverterClass::onInverterDelete(AsyncWebServerRequest* request)
     Hoymiles.removeInverterBySerial(inverter.Serial);
 
     inverter.Serial = 0;
-    strncpy(inverter.Name, "", 0);
+    strncpy(inverter.Name, "", sizeof(inverter.Name));
     Configuration.write();
 
     retMsg[F("type")] = F("success");

@@ -9,12 +9,8 @@
 #include <nRF24L01.h>
 #include <queue>
 
-using namespace std;
-
 // number of fragments hold in buffer
 #define FRAGMENT_BUFFER_SIZE 30
-
-#define MAX_RESEND_COUNT 4
 
 #ifndef HOYMILES_PIN_MISO
 #define HOYMILES_PIN_MISO 19
@@ -50,14 +46,13 @@ public:
     void setDtuSerial(uint64_t serial);
 
     bool isIdle();
-    void sendEsbPacket(CommandAbstract* cmd);
-    void sendRetransmitPacket(uint8_t fragment_id);
-    void sendLastPacketAgain();
+    bool isConnected();
+    bool isPVariant();
 
     template <typename T>
     T* enqueCommand()
     {
-        _commandQueue.push(make_shared<T>());
+        _commandQueue.push(std::make_shared<T>());
         return static_cast<T*>(_commandQueue.back().get());
     }
 
@@ -71,6 +66,10 @@ private:
     void openWritingPipe(serial_u serial);
     bool checkFragmentCrc(fragment_t* fragment);
     void dumpBuf(const char* info, uint8_t buf[], uint8_t len);
+
+    void sendEsbPacket(CommandAbstract* cmd);
+    void sendRetransmitPacket(uint8_t fragment_id);
+    void sendLastPacketAgain();
 
     std::unique_ptr<SPIClass> _hspi;
     std::unique_ptr<RF24> _radio;
@@ -89,5 +88,5 @@ private:
 
     bool _busyFlag = false;
 
-    queue<shared_ptr<CommandAbstract>> _commandQueue;
+    std::queue<std::shared_ptr<CommandAbstract>> _commandQueue;
 };

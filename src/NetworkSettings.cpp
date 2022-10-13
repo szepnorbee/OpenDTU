@@ -19,7 +19,7 @@ NetworkSettingsClass::NetworkSettingsClass()
 
 void NetworkSettingsClass::init()
 {
-    using namespace std::placeholders;
+    using std::placeholders::_1;
 
     WiFi.onEvent(std::bind(&NetworkSettingsClass::NetworkEvent, this, _1));
     setupMode();
@@ -251,7 +251,7 @@ void NetworkSettingsClass::setHostname()
     }
 #ifdef OPENDTU_ETHERNET
     else if (_networkMode == network_mode::Ethernet) {
-        if (ETH.setHostname(getHostname())) {
+        if (ETH.setHostname(getHostname().c_str())) {
             Serial.println(F("done"));
         } else {
             Serial.println(F("failed"));

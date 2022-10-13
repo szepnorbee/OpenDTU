@@ -13,7 +13,12 @@ WebApiWsLiveClass::WebApiWsLiveClass()
 
 void WebApiWsLiveClass::init(AsyncWebServer* server)
 {
-    using namespace std::placeholders;
+    using std::placeholders::_1;
+    using std::placeholders::_2;
+    using std::placeholders::_3;
+    using std::placeholders::_4;
+    using std::placeholders::_5;
+    using std::placeholders::_6;
 
     _server = server;
     _server->on("/api/livedata/status", HTTP_GET, std::bind(&WebApiWsLiveClass::onLivedataStatus, this, _1));
@@ -56,10 +61,9 @@ void WebApiWsLiveClass::loop()
         JsonVariant var = root;
         generateJsonResponse(var);
 
-        size_t len = measureJson(root);
-        AsyncWebSocketMessageBuffer* buffer = _ws.makeBuffer(len); //  creates a buffer (len + 1) for you.
+        String buffer;
         if (buffer) {
-            serializeJson(root, (char*)buffer->get(), len + 1);
+            serializeJson(root, buffer);
             _ws.textAll(buffer);
         }
 
@@ -74,14 +78,15 @@ void WebApiWsLiveClass::generateJsonResponse(JsonVariant& root)
         auto inv = Hoymiles.getInverterByPos(i);
 
         char buffer[sizeof(uint64_t) * 8 + 1];
-        sprintf(buffer, "%0lx%08lx",
+        snprintf(buffer, sizeof(buffer), "%0x%08x",
             ((uint32_t)((inv->serial() >> 32) & 0xFFFFFFFF)),
             ((uint32_t)(inv->serial() & 0xFFFFFFFF)));
 
         root[i][F("serial")] = String(buffer);
         root[i][F("name")] = inv->name();
         root[i][F("data_age")] = (millis() - inv->Statistics()->getLastUpdate()) / 1000;
-        root[i][F("age_critical")] = ((millis() - inv->Statistics()->getLastUpdate()) / 1000) > Configuration.get().Dtu_PollInterval * 5;
+        root[i][F("reachable")] = inv->isReachable();
+        root[i][F("producing")] = inv->isProducing();
 
         // Loop all channels
         for (uint8_t c = 0; c <= inv->Statistics()->getChannelCount(); c++) {
@@ -135,11 +140,11 @@ void WebApiWsLiveClass::onWebsocketEvent(AsyncWebSocket* server, AsyncWebSocketC
 {
     if (type == WS_EVT_CONNECT) {
         char str[64];
-        sprintf(str, "Websocket: [%s][%u] connect", server->url(), client->id());
+        snprintf(str, sizeof(str), "Websocket: [%s][%u] connect", server->url(), client->id());
         Serial.println(str);
     } else if (type == WS_EVT_DISCONNECT) {
         char str[64];
-        sprintf(str, "Websocket: [%s][%u] disconnect", server->url(), client->id());
+        snprintf(str, sizeof(str), "Websocket: [%s][%u] disconnect", server->url(), client->id());
         Serial.println(str);
     }
 }

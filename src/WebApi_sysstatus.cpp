@@ -7,6 +7,7 @@
 #include "AsyncJson.h"
 #include "Configuration.h"
 #include "NetworkSettings.h"
+#include <Hoymiles.h>
 #include <LittleFS.h>
 #include <ResetReason.h>
 
@@ -16,7 +17,7 @@
 
 void WebApiSysstatusClass::init(AsyncWebServer* server)
 {
-    using namespace std::placeholders;
+    using std::placeholders::_1;
 
     _server = server;
 
@@ -58,11 +59,14 @@ void WebApiSysstatusClass::onSystemStatus(AsyncWebServerRequest* request)
     root[F("cfgsavecount")] = Configuration.get().Cfg_SaveCount;
 
     char version[16];
-    sprintf(version, "%d.%d.%d", CONFIG_VERSION >> 24 & 0xff, CONFIG_VERSION >> 16 & 0xff, CONFIG_VERSION >> 8 & 0xff);
-    root[F("firmware_version")] = version;
+    snprintf(version, sizeof(version), "%d.%d.%d", CONFIG_VERSION >> 24 & 0xff, CONFIG_VERSION >> 16 & 0xff, CONFIG_VERSION >> 8 & 0xff);
+    root[F("config_version")] = version;
     root[F("git_hash")] = AUTO_GIT_HASH;
 
     root[F("uptime")] = esp_timer_get_time() / 1000000;
+
+    root[F("radio_connected")] = Hoymiles.getRadio()->isConnected();
+    root[F("radio_pvariant")] = Hoymiles.getRadio()->isPVariant();
 
     response->setLength();
     request->send(response);

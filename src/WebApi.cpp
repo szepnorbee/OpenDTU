@@ -15,18 +15,19 @@ WebApiClass::WebApiClass()
 
 void WebApiClass::init()
 {
-    using namespace std::placeholders;
-
     _server.addHandler(&_events);
 
+    _webApiConfig.init(&_server);
     _webApiDevInfo.init(&_server);
     _webApiDtu.init(&_server);
     _webApiEventlog.init(&_server);
     _webApiFirmware.init(&_server);
     _webApiInverter.init(&_server);
+    _webApiLimit.init(&_server);
     _webApiMqtt.init(&_server);
     _webApiNetwork.init(&_server);
     _webApiNtp.init(&_server);
+    _webApiPower.init(&_server);
     _webApiSysstatus.init(&_server);
     _webApiWebapp.init(&_server);
     _webApiWsLive.init(&_server);
@@ -36,14 +37,17 @@ void WebApiClass::init()
 
 void WebApiClass::loop()
 {
+    _webApiConfig.loop();
     _webApiDevInfo.loop();
     _webApiDtu.loop();
     _webApiEventlog.loop();
     _webApiFirmware.loop();
     _webApiInverter.loop();
+    _webApiLimit.loop();
     _webApiMqtt.loop();
     _webApiNetwork.loop();
     _webApiNtp.loop();
+    _webApiPower.loop();
     _webApiSysstatus.loop();
     _webApiWebapp.loop();
     _webApiWsLive.loop();

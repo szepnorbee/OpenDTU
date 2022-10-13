@@ -11,7 +11,7 @@
 
 void WebApiNetworkClass::init(AsyncWebServer* server)
 {
-    using namespace std::placeholders;
+    using std::placeholders::_1;
 
     _server = server;
 
@@ -151,11 +151,13 @@ void WebApiNetworkClass::onNetworkAdminPost(AsyncWebServerRequest* request)
         request->send(response);
         return;
     }
-    if (root[F("ssid")].as<String>().length() == 0 || root[F("ssid")].as<String>().length() > WIFI_MAX_SSID_STRLEN) {
-        retMsg[F("message")] = F("SSID must between 1 and " STR(WIFI_MAX_SSID_STRLEN) " characters long!");
-        response->setLength();
-        request->send(response);
-        return;
+    if (NetworkSettings.NetworkMode() == network_mode::WiFi) {
+        if (root[F("ssid")].as<String>().length() == 0 || root[F("ssid")].as<String>().length() > WIFI_MAX_SSID_STRLEN) {
+            retMsg[F("message")] = F("SSID must between 1 and " STR(WIFI_MAX_SSID_STRLEN) " characters long!");
+            response->setLength();
+            request->send(response);
+            return;
+        }
     }
     if (root[F("password")].as<String>().length() > WIFI_MAX_PASSWORD_STRLEN - 1) {
         retMsg[F("message")] = F("Password must not be longer than " STR(WIFI_MAX_PASSWORD_STRLEN) " characters long!");
@@ -185,9 +187,9 @@ void WebApiNetworkClass::onNetworkAdminPost(AsyncWebServerRequest* request)
     config.WiFi_Dns2[1] = dns2[1];
     config.WiFi_Dns2[2] = dns2[2];
     config.WiFi_Dns2[3] = dns2[3];
-    strcpy(config.WiFi_Ssid, root[F("ssid")].as<String>().c_str());
-    strcpy(config.WiFi_Password, root[F("password")].as<String>().c_str());
-    strcpy(config.WiFi_Hostname, root[F("hostname")].as<String>().c_str());
+    strlcpy(config.WiFi_Ssid, root[F("ssid")].as<String>().c_str(), sizeof(config.WiFi_Ssid));
+    strlcpy(config.WiFi_Password, root[F("password")].as<String>().c_str(), sizeof(config.WiFi_Password));
+    strlcpy(config.WiFi_Hostname, root[F("hostname")].as<String>().c_str(), sizeof(config.WiFi_Hostname));
     if (root[F("dhcp")].as<bool>()) {
         config.WiFi_Dhcp = true;
     } else {
